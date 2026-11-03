@@ -1,0 +1,102 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f4f5f7;
+  color: #1f2933;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.container {
+  max-width: 560px;
+  margin: 48px auto;
+  padding: 0 16px;
+}
+
+h1 {
+  margin: 0 0 24px;
+}
+
+.add-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.add-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #cbd2d9;
+  border-radius: 6px;
+}
+
+button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+button.delete {
+  padding: 6px 12px;
+  background: transparent;
+  color: #b91c1c;
+}
+
+button.delete:hover {
+  background: #fee2e2;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.muted {
+  color: #6b7280;
+}
+
+.todo-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.todo-item label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.todo-item label.done span {
+  color: #6b7280;
+  text-decoration: line-through;
+}

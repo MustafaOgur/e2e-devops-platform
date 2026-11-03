@@ -1,0 +1,39 @@
+# Yerel çalışma notu
+ROADMAP.md
+
+# Secret ve yerel ortam değişkenleri
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+npm-debug.log*
+
+# Vagrant / Ansible
+.vagrant/
+*.retry
+
+# Host'taki DB ve Velero yedekleri
+backups/
+
+# Kubeconfig
+kubeconfig
+*.kubeconfig
+
+# Editör ve işletim sistemi
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
