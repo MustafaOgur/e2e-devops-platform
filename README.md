@@ -46,20 +46,22 @@ npm run dev
 - Uygulama: http://localhost:5173
 - API dokümanı: http://localhost:8000/docs
 
-## Testler
+## Test ve Lint
 
-Unit testler veritabanı veya çalışan bir backend gerektirmez.
+Unit testler veritabanı veya çalışan bir backend gerektirmez. Coverage %80'in altına düşerse komut hata verir.
 
 ```bash
-# Backend: pytest (bellek içi SQLite ile)
+# Backend: pytest (bellek içi SQLite ile) + Ruff
 cd app/backend
 pip install -r requirements-dev.txt
-pytest
+ruff check .
+pytest --cov
 
-# Frontend: Vitest + React Testing Library
+# Frontend: Vitest + React Testing Library + ESLint
 cd app/frontend
 npm install
-npm test
+npm run lint
+npm run test:coverage
 ```
 
 ## Repo Yapısı
