@@ -46,11 +46,27 @@ npm run dev
 - Uygulama: http://localhost:5173
 - API dokümanı: http://localhost:8000/docs
 
+## Testler
+
+Unit testler veritabanı veya çalışan bir backend gerektirmez.
+
+```bash
+# Backend: pytest (bellek içi SQLite ile)
+cd app/backend
+pip install -r requirements-dev.txt
+pytest
+
+# Frontend: Vitest + React Testing Library
+cd app/frontend
+npm install
+npm test
+```
+
 ## Repo Yapısı
 
 ```
-app/backend/    FastAPI uygulaması ve veritabanı migration'ları
-app/frontend/   React uygulaması
+app/backend/    FastAPI uygulaması, veritabanı migration'ları ve testler
+app/frontend/   React uygulaması ve testler
 ```
 
 ## Lisans
