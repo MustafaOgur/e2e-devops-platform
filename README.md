@@ -21,6 +21,22 @@ Backend, sonraki adımlara hazır olacak şekilde şunları içerir:
 
 ## Yerelde Çalıştırma
 
+### Docker Compose ile
+
+Gereksinim: Docker
+
+```bash
+cd app
+docker compose up --build
+```
+
+- Uygulama: http://localhost:3000
+- API dokümanı: http://localhost:8000/docs
+
+Durdurmak için `docker compose down`. Veritabanını da silmek için `docker compose down -v`.
+
+### Geliştirme için (container'sız)
+
 Gereksinimler: Python 3.13, Node.js 24, Docker
 
 ```bash
@@ -67,8 +83,9 @@ npm run test:coverage
 ## Repo Yapısı
 
 ```
-app/backend/    FastAPI uygulaması, veritabanı migration'ları ve testler
-app/frontend/   React uygulaması ve testler
+app/backend/          FastAPI uygulaması, veritabanı migration'ları, testler ve Dockerfile
+app/frontend/         React uygulaması, testler, Dockerfile ve Nginx ayarı
+app/docker-compose.yml  3 katmanı birlikte çalıştıran yerel ortam
 ```
 
 ## Lisans
