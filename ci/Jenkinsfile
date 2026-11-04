@@ -1,0 +1,296 @@
+pipeline {
+    agent none
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        skipDefaultCheckout(true)
+        timeout(time: 30, unit: 'MINUTES')
+    }
+
+    stages {
+        stage('Build & Scan') {
+            parallel {
+                stage('Backend') {
+                    agent any
+                    stages {
+                        stage('Backend: Checkout') {
+                            steps {
+                                cleanWs()
+                                script {
+                                    env.IMAGE_TAG = checkout(scm).GIT_COMMIT.substring(0, 7)
+                                }
+                            }
+                        }
+                        stage('Backend: Python Checks') {
+                            agent {
+                                docker {
+                                    image 'python:3.13-slim'
+                                    reuseNode true
+                                }
+                            }
+                            stages {
+                                stage('Backend: Install Dependencies') {
+                                    steps {
+                                        dir('app/backend') {
+                                            sh 'mkdir -p reports'
+                                            sh 'pip install --no-cache-dir -r requirements-dev.txt'
+                                        }
+                                    }
+                                }
+                                stage('Backend: Dependency Scan') {
+                                    steps {
+                                        dir('app/backend') {
+                                            // Bilinen açık varsa build durmaz, UNSTABLE görünür
+                                            catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                                                sh 'pip-audit -r requirements.txt --format json --output reports/pip-audit.json'
+                                            }
+                                        }
+                                    }
+                                }
+                                stage('Backend: Lint') {
+                                    steps {
+                                        dir('app/backend') {
+                                            sh 'ruff check .'
+                                        }
+                                    }
+                                }
+                                stage('Backend: Unit Test') {
+                                    steps {
+                                        dir('app/backend') {
+                                            sh 'pytest --junitxml=reports/junit.xml'
+                                        }
+                                    }
+                                }
+                                stage('Backend: Code Coverage') {
+                                    steps {
+                                        dir('app/backend') {
+                                            sh 'pytest --cov --cov-report=term --cov-report=xml:reports/coverage.xml'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        stage('Backend: Trivy FS Scan') {
+                            agent {
+                                docker {
+                                    image 'aquasec/trivy:0.76.1'
+                                    args '--entrypoint= -v trivy-cache-backend:/root/.cache'
+                                    reuseNode true
+                                }
+                            }
+                            steps {
+                                dir('app/backend') {
+                                    sh 'trivy fs --scanners vuln,secret --severity HIGH,CRITICAL --format json --output reports/trivy-fs.json .'
+                                    sh 'trivy fs --scanners vuln,secret --severity CRITICAL --exit-code 1 --ignore-unfixed .'
+                                }
+                            }
+                        }
+                        stage('Backend: SonarCloud') {
+                            agent {
+                                docker {
+                                    image 'sonarsource/sonar-scanner-cli:12.3'
+                                    args '--entrypoint='
+                                    reuseNode true
+                                }
+                            }
+                            steps {
+                                dir('app/backend') {
+                                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                                        sh 'sonar-scanner -Dsonar.qualitygate.wait=true'
+                                    }
+                                }
+                            }
+                        }
+                        stage('Backend: Build Image') {
+                            steps {
+                                sh 'docker build -t todo-backend:$IMAGE_TAG app/backend'
+                            }
+                        }
+                        stage('Backend: Trivy Image Scan') {
+                            agent {
+                                docker {
+                                    image 'aquasec/trivy:0.76.1'
+                                    args '--entrypoint= -v trivy-cache-backend:/root/.cache -v /var/run/docker.sock:/var/run/docker.sock'
+                                    reuseNode true
+                                }
+                            }
+                            steps {
+                                dir('app/backend') {
+                                    sh 'trivy image --severity HIGH,CRITICAL --format json --output reports/trivy-image.json todo-backend:$IMAGE_TAG'
+                                    sh 'trivy image --severity CRITICAL --exit-code 1 --ignore-unfixed todo-backend:$IMAGE_TAG'
+                                }
+                            }
+                        }
+                        stage('Backend: Push Image') {
+                            when {
+                                branch 'main'
+                            }
+                            steps {
+                                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                                    sh '''
+                                        export DOCKER_CONFIG="$(mktemp -d)"
+                                        trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+                                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                                        docker tag "todo-backend:$IMAGE_TAG" "$DOCKER_USER/todo-backend:$IMAGE_TAG"
+                                        docker push "$DOCKER_USER/todo-backend:$IMAGE_TAG"
+                                        docker rmi "$DOCKER_USER/todo-backend:$IMAGE_TAG"
+                                    '''
+                                }
+                            }
+                        }
+                    }
+                    post {
+                        always {
+                            junit testResults: 'app/backend/reports/junit.xml', allowEmptyResults: true
+                            recordCoverage id: 'backend-coverage',
+                                name: 'Backend Coverage',
+                                tools: [[parser: 'COBERTURA', pattern: 'app/backend/reports/coverage.xml']]
+                            archiveArtifacts artifacts: 'app/backend/reports/**', allowEmptyArchive: true
+                            sh 'docker rmi "todo-backend:$IMAGE_TAG" || true'
+                        }
+                    }
+                }
+
+                stage('Frontend') {
+                    agent any
+                    stages {
+                        stage('Frontend: Checkout') {
+                            steps {
+                                cleanWs()
+                                script {
+                                    env.IMAGE_TAG = checkout(scm).GIT_COMMIT.substring(0, 7)
+                                }
+                            }
+                        }
+                        stage('Frontend: Node Checks') {
+                            agent {
+                                docker {
+                                    image 'node:24-alpine'
+                                    reuseNode true
+                                }
+                            }
+                            stages {
+                                stage('Frontend: Install Dependencies') {
+                                    steps {
+                                        dir('app/frontend') {
+                                            sh 'mkdir -p reports'
+                                            sh 'npm ci'
+                                        }
+                                    }
+                                }
+                                stage('Frontend: Dependency Scan') {
+                                    steps {
+                                        dir('app/frontend') {
+                                            sh 'npm audit --json > reports/npm-audit.json || true'
+                                            sh 'npm audit --audit-level=critical'
+                                        }
+                                    }
+                                }
+                                stage('Frontend: Lint') {
+                                    steps {
+                                        dir('app/frontend') {
+                                            sh 'npm run lint'
+                                        }
+                                    }
+                                }
+                                stage('Frontend: Unit Test') {
+                                    steps {
+                                        dir('app/frontend') {
+                                            sh 'npx vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml'
+                                        }
+                                    }
+                                }
+                                stage('Frontend: Code Coverage') {
+                                    steps {
+                                        dir('app/frontend') {
+                                            sh 'npm run test:coverage'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        stage('Frontend: Trivy FS Scan') {
+                            agent {
+                                docker {
+                                    image 'aquasec/trivy:0.76.1'
+                                    args '--entrypoint= -v trivy-cache-frontend:/root/.cache'
+                                    reuseNode true
+                                }
+                            }
+                            steps {
+                                dir('app/frontend') {
+                                    sh 'trivy fs --scanners vuln,secret --skip-dirs node_modules --severity HIGH,CRITICAL --format json --output reports/trivy-fs.json .'
+                                    sh 'trivy fs --scanners vuln,secret --skip-dirs node_modules --severity CRITICAL --exit-code 1 --ignore-unfixed .'
+                                }
+                            }
+                        }
+                        stage('Frontend: SonarCloud') {
+                            agent {
+                                docker {
+                                    image 'sonarsource/sonar-scanner-cli:12.3'
+                                    args '--entrypoint='
+                                    reuseNode true
+                                }
+                            }
+                            steps {
+                                dir('app/frontend') {
+                                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                                        sh 'sonar-scanner -Dsonar.qualitygate.wait=true'
+                                    }
+                                }
+                            }
+                        }
+                        stage('Frontend: Build Image') {
+                            steps {
+                                sh 'docker build -t todo-frontend:$IMAGE_TAG app/frontend'
+                            }
+                        }
+                        stage('Frontend: Trivy Image Scan') {
+                            agent {
+                                docker {
+                                    image 'aquasec/trivy:0.76.1'
+                                    args '--entrypoint= -v trivy-cache-frontend:/root/.cache -v /var/run/docker.sock:/var/run/docker.sock'
+                                    reuseNode true
+                                }
+                            }
+                            steps {
+                                dir('app/frontend') {
+                                    sh 'trivy image --severity HIGH,CRITICAL --format json --output reports/trivy-image.json todo-frontend:$IMAGE_TAG'
+                                    sh 'trivy image --severity CRITICAL --exit-code 1 --ignore-unfixed todo-frontend:$IMAGE_TAG'
+                                }
+                            }
+                        }
+                        stage('Frontend: Push Image') {
+                            when {
+                                branch 'main'
+                            }
+                            steps {
+                                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                                    sh '''
+                                        export DOCKER_CONFIG="$(mktemp -d)"
+                                        trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+                                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                                        docker tag "todo-frontend:$IMAGE_TAG" "$DOCKER_USER/todo-frontend:$IMAGE_TAG"
+                                        docker push "$DOCKER_USER/todo-frontend:$IMAGE_TAG"
+                                        docker rmi "$DOCKER_USER/todo-frontend:$IMAGE_TAG"
+                                    '''
+                                }
+                            }
+                        }
+                    }
+                    post {
+                        always {
+                            junit testResults: 'app/frontend/reports/junit.xml', allowEmptyResults: true
+                            recordCoverage id: 'frontend-coverage',
+                                name: 'Frontend Coverage',
+                                tools: [[parser: 'COBERTURA', pattern: 'app/frontend/coverage/cobertura-coverage.xml']]
+                            archiveArtifacts artifacts: 'app/frontend/reports/**,app/frontend/coverage/cobertura-coverage.xml,app/frontend/coverage/lcov.info', allowEmptyArchive: true
+                            sh 'docker rmi "todo-frontend:$IMAGE_TAG" || true'
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

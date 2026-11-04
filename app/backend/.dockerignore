@@ -3,8 +3,10 @@
 __pycache__/
 *.py[cod]
 tests/
+reports/
 .pytest_cache/
 .ruff_cache/
+.scannerwork/
 .coverage
 .coveragerc
 coverage.xml
@@ -12,5 +14,6 @@ htmlcov/
 pytest.ini
 requirements-dev.txt
 ruff.toml
+sonar-project.properties
 Dockerfile
 .dockerignore
