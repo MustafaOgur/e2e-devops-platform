@@ -1,0 +1,18 @@
+name: jenkins
+
+services:
+  jenkins:
+    build: .
+    # Docker socket'ine erişim için root. Socket zaten host Docker'ında tam yetki verir,
+    # bu yüzden Jenkins sadece bu makineden erişilebilir (127.0.0.1).
+    user: root
+    environment:
+      JAVA_OPTS: -Xmx1g
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - jenkins-home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  jenkins-home:
