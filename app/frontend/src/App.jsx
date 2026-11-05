@@ -28,7 +28,7 @@ export default function App() {
     event.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) return;
-    run(async () => {
+    void run(async () => {
       const todo = await createTodo(trimmed);
       setTodos((current) => [todo, ...current]);
       setTitle("");
@@ -36,7 +36,7 @@ export default function App() {
   }
 
   function handleToggle(todo) {
-    run(async () => {
+    void run(async () => {
       const updated = await updateTodo(todo.id, { completed: !todo.completed });
       setTodos((current) =>
         current.map((item) => (item.id === updated.id ? updated : item)),
@@ -45,7 +45,7 @@ export default function App() {
   }
 
   function handleDelete(id) {
-    run(async () => {
+    void run(async () => {
       await deleteTodo(id);
       setTodos((current) => current.filter((item) => item.id !== id));
     });

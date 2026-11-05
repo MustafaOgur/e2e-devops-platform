@@ -17,6 +17,6 @@ export const createTodo = (title) =>
   request("", { method: "POST", body: JSON.stringify({ title }) });
 
 export const updateTodo = (id, changes) =>
-  request(`/${id}`, { method: "PATCH", body: JSON.stringify(changes) });
+  request(`/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(changes) });
 
-export const deleteTodo = (id) => request(`/${id}`, { method: "DELETE" });
+export const deleteTodo = (id) => request(`/${encodeURIComponent(id)}`, { method: "DELETE" });
