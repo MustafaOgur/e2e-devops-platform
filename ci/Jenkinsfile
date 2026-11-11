@@ -292,5 +292,41 @@ pipeline {
                 }
             }
         }
+
+        stage('Update GitOps') {
+            when {
+                beforeAgent true
+                branch 'main'
+            }
+            agent any
+            environment {
+                GITOPS_REPO = 'github.com/MustafaOgur/e2e-devops-platform-gitops.git'
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'gitops-credentials', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+                    sh '''
+                        rm -rf gitops
+                        trap 'rm -rf gitops' EXIT
+                        git clone --depth 1 "https://${GIT_USER}:${GIT_TOKEN}@${GITOPS_REPO}" gitops
+                        cd gitops
+
+                        sed -i -E "s#(image: [^ ]+/todo-backend:)[^ ]+#\\1${IMAGE_TAG}#" \
+                            manifests/app/backend/deployment.yaml \
+                            manifests/app/backend/migration-job.yaml
+                        sed -i -E "s#(image: [^ ]+/todo-frontend:)[^ ]+#\\1${IMAGE_TAG}#" \
+                            manifests/app/frontend/deployment.yaml
+
+                        if git diff --quiet; then
+                            echo "Image tags are already ${IMAGE_TAG}"
+                            exit 0
+                        fi
+                        git diff --stat
+                        git -c user.name="Jenkins" -c user.email="jenkins@localhost" \
+                            commit -am "ci: update todo images to ${IMAGE_TAG}"
+                        git push origin HEAD:main
+                    '''
+                }
+            }
+        }
     }
 }

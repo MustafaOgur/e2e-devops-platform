@@ -4,7 +4,7 @@
 
 body {
   margin: 0;
-  background: #f4f5f7;
+  background: #f0fdf4;
   color: #1f2933;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
@@ -42,13 +42,13 @@ button {
   padding: 10px 16px;
   border: none;
   border-radius: 6px;
-  background: #2563eb;
+  background: #16a34a;
   color: #fff;
   cursor: pointer;
 }
 
 button:hover {
-  background: #1d4ed8;
+  background: #15803d;
 }
 
 button.delete {
