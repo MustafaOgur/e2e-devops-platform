@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import engine
+from app.metrics import record_metrics
 from app.routers import ops, todos
 
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +25,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Todo API", lifespan=lifespan)
 
+app.middleware("http")(record_metrics)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
