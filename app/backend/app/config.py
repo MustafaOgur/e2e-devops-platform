@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     database_url: str
     cors_origins: str = "http://localhost:5173"  # virgülle ayrılmış liste
+    log_level: str = "INFO"
 
 
 settings = Settings()
